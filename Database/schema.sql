@@ -130,7 +130,6 @@ CREATE TABLE payments (
         CHECK (status IN ('pending', 'completed', 'failed', 'refunded'))
 );
 
-
 --reviews table
 CREATE TABLE reviews (
     review_id SERIAL PRIMARY KEY,
@@ -146,53 +145,38 @@ CREATE TABLE reviews (
 
 
 --INDEXES
-
-
-
 -- users
-CREATE INDEX idx_users_email ON users (email);
-CREATE INDEX idx_users_is_active ON users (is_active);
-
+CREATE INDEX users_email_search_index ON users (email);
+CREATE INDEX users_active_status_index ON users (is_active);
 --user roles
-CREATE INDEX idx_user_roles_user_id ON user_roles (user_id);
-CREATE INDEX idx_user_roles_role_id ON user_roles (role_id);
-
+CREATE INDEX user_roles_lookup_by_user_index ON user_roles (user_id);
+CREATE INDEX user_roles_lookup_by_role_index ON user_roles (role_id);
 --vehicles
-CREATE INDEX idx_vehicles_is_available ON vehicles (is_available);
-
+CREATE INDEX vehicles_availability_status_index ON vehicles (is_available);
 --rental bookings
-CREATE INDEX idx_rental_customer ON rental_bookings (customer_id);
-CREATE INDEX idx_rental_vehicle ON rental_bookings (vehicle_id);
-CREATE INDEX idx_rental_status ON rental_bookings (status);
-CREATE INDEX idx_rental_dates ON rental_bookings (start_date, end_date);
-
-
+CREATE INDEX rentals_customer_history_index ON rental_bookings (customer_id);
+CREATE INDEX rentals_vehicle_history_index ON rental_bookings (vehicle_id);
+CREATE INDEX rentals_status_filter_index ON rental_bookings (status);
+CREATE INDEX rentals_date_range_lookup_index ON rental_bookings (start_date, end_date);
 --ride bookings
-CREATE INDEX idx_ride_customer ON ride_bookings (customer_id);
-CREATE INDEX idx_ride_driver ON ride_bookings (driver_id);
-CREATE INDEX idx_ride_vehicle ON ride_bookings (vehicle_id);
-CREATE INDEX idx_ride_status ON ride_bookings (status);
-
-
+CREATE INDEX rides_customer_history_index ON ride_bookings (customer_id);
+CREATE INDEX rides_driver_history_index ON ride_bookings (driver_id);
+CREATE INDEX rides_vehicle_history_index ON ride_bookings (vehicle_id);
+CREATE INDEX rides_status_filter_index ON ride_bookings (status);
 --carpool offers
-CREATE INDEX idx_carpool_offers_driver ON carpool_offers (driver_id);
-CREATE INDEX idx_carpool_offers_vehicle ON carpool_offers (vehicle_id);
-CREATE INDEX idx_carpool_offers_status ON carpool_offers (status);
-
+CREATE INDEX carpools_driver_offers_index ON carpool_offers (driver_id);
+CREATE INDEX carpools_vehicle_offers_index ON carpool_offers (vehicle_id);
+CREATE INDEX carpools_status_filter_index ON carpool_offers (status);
 --carpool bookings
-CREATE INDEX idx_carpool_bk_carpool ON carpool_bookings (carpool_id);
-CREATE INDEX idx_carpool_bk_passenger ON carpool_bookings (passenger_id);
-
+CREATE INDEX carpool_bookings_offer_lookup_index ON carpool_bookings (carpool_id);
+CREATE INDEX carpool_bookings_passenger_lookup_index ON carpool_bookings (passenger_id);
 --payments
-CREATE INDEX idx_payments_user ON payments (user_id);
-CREATE INDEX idx_payments_booking_type ON payments (booking_type, booking_id);
-
-
+CREATE INDEX payments_user_history_index ON payments (user_id);
+CREATE INDEX payments_booking_reference_index ON payments (booking_type, booking_id);
 --reviews
-CREATE INDEX idx_reviews_reviewer ON reviews (reviewer_id);
-CREATE INDEX idx_reviews_reviewee ON reviews (reviewee_id);
-CREATE INDEX idx_reviews_vehicle ON reviews (vehicle_id);
-
+CREATE INDEX reviews_from_reviewer_index ON reviews (reviewer_id);
+CREATE INDEX reviews_to_reviewee_index ON reviews (reviewee_id);
+CREATE INDEX reviews_vehicle_feedback_index ON reviews (vehicle_id);
 
 
 --TRIGGERS

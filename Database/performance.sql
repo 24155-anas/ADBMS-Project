@@ -1,13 +1,13 @@
 -- QUERY 1: Search user by email
 -- Before indexing
-DROP INDEX IF EXISTS idx_users_email;
+DROP INDEX IF EXISTS users_email_search_index;
 EXPLAIN ANALYZE
 SELECT user_id, full_name, email, phone 
 FROM users 
 WHERE email = 'zain.malik@gmail.com';
 
 -- Create index
-CREATE INDEX idx_users_email ON users (email);
+CREATE INDEX users_email_search_index ON users (email);
 -- After indexing
 EXPLAIN ANALYZE
 SELECT user_id, full_name, email, phone 
@@ -39,14 +39,14 @@ WHERE email = 'zain.malik@gmail.com';
 
 -- QUERY 2: Find rentals by vehicle ID
 -- Before indexing
-DROP INDEX IF EXISTS idx_rental_vehicle;
+DROP INDEX IF EXISTS rentals_vehicle_history_index;
 EXPLAIN ANALYZE
 SELECT rental_id, customer_id, start_date, end_date, status 
 FROM rental_bookings 
 WHERE vehicle_id = 1;
 
 -- Create index
-CREATE INDEX idx_rental_vehicle ON rental_bookings (vehicle_id);
+CREATE INDEX rentals_vehicle_history_index ON rental_bookings (vehicle_id);
 -- After indexing
 EXPLAIN ANALYZE
 SELECT rental_id, customer_id, start_date, end_date, status 
@@ -78,7 +78,7 @@ WHERE vehicle_id = 1;
 
 -- QUERY 3: Find active carpool offers (status = 'open')
 -- Before indexing
-DROP INDEX IF EXISTS idx_carpool_offers_status;
+DROP INDEX IF EXISTS carpools_status_filter_index;
 EXPLAIN ANALYZE
 SELECT 
     co.carpool_id,
@@ -93,7 +93,7 @@ JOIN users u ON co.driver_id = u.user_id
 WHERE co.status = 'open';
 
 -- Create index (already defined in schema)
-CREATE INDEX idx_carpool_offers_status ON carpool_offers (status);
+CREATE INDEX carpools_status_filter_index ON carpool_offers (status);
 -- After indexing
 EXPLAIN ANALYZE
 SELECT 
