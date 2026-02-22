@@ -121,27 +121,29 @@ INSERT INTO carpool_bookings (carpool_id, passenger_id, seats_booked, booking_ti
 (6, 8,  1, '2026-01-31 11:00:00', 'completed'),
 (7, 6,  1, '2026-02-04 12:00:00', 'confirmed'),
 (8, 19, 2, '2026-02-07 09:00:00', 'confirmed');
-INSERT INTO payments (user_id, booking_type, booking_id, amount, payment_method, payment_time, status) VALUES
-(1,  'rental',  1,  72000.00,  'card', '2026-01-05 09:00:00', 'completed'),
-(2,  'rental',  2,  86400.00,  'card', '2026-01-10 10:00:00', 'completed'),
-(4,  'rental',  3,  19200.00,  'cash', '2026-01-15 11:00:00', 'completed'),
-(6,  'rental',  4,  57600.00,  'card', '2026-01-20 12:00:00', 'completed'),
-(8,  'rental',  5,  76800.00,  'card', '2026-01-25 09:00:00', 'completed'),
-(1,  'ride',    1,  450.00,   'cash', '2026-01-10 09:30:00', 'completed'),
-(2,  'ride',    2,  300.00,   'card', '2026-01-11 10:45:00', 'completed'),
-(4,  'ride',    3,  250.00,   'cash', '2026-01-12 14:30:00', 'completed'),
-(6,  'ride',    4,  500.00,   'card', '2026-01-15 10:00:00', 'completed'),
-(8,  'ride',    5,  350.00,   'card', '2026-01-18 17:00:00', 'completed'),
-(10, 'ride',    6,  200.00,   'cash', '2026-01-20 11:30:00', 'completed'),
-(12, 'ride',    7,  300.00,   'cash', '2026-01-22 14:00:00', 'completed'),
-(1,  'carpool', 1,  1500.00,  'card', '2026-01-14 10:30:00', 'completed'),
-(2,  'carpool', 2,  1500.00,  'card', '2026-01-14 11:30:00', 'completed'),
-(6,  'carpool', 4,  800.00,   'cash', '2026-01-17 09:30:00', 'completed'),
-(10, 'carpool', 6,  1500.00,  'card', '2026-01-19 14:30:00', 'completed'),
-(1,  'carpool', 8,  300.00,   'cash', '2026-01-21 08:30:00', 'completed'),
-(4,  'carpool', 12, 4000.00,  'card', '2026-01-31 10:30:00', 'completed'),
-(6,  'carpool', 14, 500.00,   'card', '2026-02-04 12:30:00', 'pending'),
-(19, 'carpool', 15, 2400.00,  'card', '2026-02-07 09:30:00', 'pending');
+INSERT INTO rental_payments (user_id, rental_id, amount, payment_method, payment_time, payment_status) VALUES
+(1,  1,  72000.00,  'card', '2026-01-05 09:00:00', 'completed'),
+(2,  2,  86400.00,  'card', '2026-01-10 10:00:00', 'completed'),
+(4,  3,  19200.00,  'cash', '2026-01-15 11:00:00', 'completed'),
+(6,  4,  57600.00,  'card', '2026-01-20 12:00:00', 'completed'),
+(8,  5,  76800.00,  'card', '2026-01-25 09:00:00', 'completed');
+INSERT INTO ride_payments (user_id, ride_id, amount, payment_method, payment_time, payment_status) VALUES
+(1,  1,  450.00,   'cash', '2026-01-10 09:30:00', 'completed'),
+(2,  2,  300.00,   'card', '2026-01-11 10:45:00', 'completed'),
+(4,  3,  250.00,   'cash', '2026-01-12 14:30:00', 'completed'),
+(6,  4,  500.00,   'card', '2026-01-15 10:00:00', 'completed'),
+(8,  5,  350.00,   'card', '2026-01-18 17:00:00', 'completed'),
+(10, 6,  200.00,   'cash', '2026-01-20 11:30:00', 'completed'),
+(12, 7,  300.00,   'cash', '2026-01-22 14:00:00', 'completed');
+INSERT INTO carpool_payments (user_id, carpool_booking_id, amount, payment_method, payment_time, payment_status) VALUES
+(1,  1,  1500.00,  'card', '2026-01-14 10:30:00', 'completed'),
+(2,  2,  1500.00,  'card', '2026-01-14 11:30:00', 'completed'),
+(6,  4,  800.00,   'cash', '2026-01-17 09:30:00', 'completed'),
+(10, 6,  1500.00,  'card', '2026-01-19 14:30:00', 'completed'),
+(1,  8,  300.00,   'cash', '2026-01-21 08:30:00', 'completed'),
+(4,  12, 4000.00,  'card', '2026-01-31 10:30:00', 'completed'),
+(6,  14, 500.00,   'card', '2026-02-04 12:30:00', 'pending'),
+(19, 15, 2400.00,  'card', '2026-02-07 09:30:00', 'pending');
 INSERT INTO reviews (reviewer_id, reviewee_id, vehicle_id, booking_type, rating, comment) VALUES
 (1,  3,  1,  'ride',    5, 'Excellent ride! Very smooth driving and clean car.'),
 (2,  5,  2,  'ride',    4, 'Good ride, arrived on time. Car was comfortable.'),

@@ -3,7 +3,9 @@ DROP VIEW  IF EXISTS vw_driver_earnings CASCADE;
 DROP VIEW  IF EXISTS vw_active_rentals CASCADE;
 
 DROP TABLE IF EXISTS reviews CASCADE;
-DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS ride_payments CASCADE;
+DROP TABLE IF EXISTS rental_payments CASCADE;
+DROP TABLE IF EXISTS carpool_payments CASCADE;
 DROP TABLE IF EXISTS carpool_bookings CASCADE;
 DROP TABLE IF EXISTS carpool_offers CASCADE;
 DROP TABLE IF EXISTS ride_bookings CASCADE;
@@ -115,19 +117,40 @@ CREATE TABLE carpool_bookings (
 );
 
 
---to be changed
---payments
-CREATE TABLE payments (
-    payment_id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    booking_type VARCHAR(20) NOT NULL CHECK (booking_type IN ('rental', 'ride', 'carpool')),
-    booking_id INTEGER NOT NULL, --FK(rental_id/ride_id/carpool booking_id)
-    amount NUMERIC(10,2)  NOT NULL CHECK (amount >= 0),
-    payment_method  VARCHAR(10)    NOT NULL
-        CHECK (payment_method IN ('card', 'cash')),
-    payment_time    TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status          VARCHAR(20)    NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'completed', 'failed', 'refunded'))
+--rental payments
+CREATE TABLE rental_payments (
+    payment_id      SERIAL PRIMARY KEY,
+    user_id         INTEGER      NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    rental_id       INTEGER      NOT NULL REFERENCES rental_bookings(rental_id) ON DELETE CASCADE,
+    amount          NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+    payment_method  VARCHAR(10)  NOT NULL CHECK (payment_method IN ('card', 'cash')),
+    payment_time    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    payment_status  VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                    CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded'))
+);
+
+--ride payments
+CREATE TABLE ride_payments (
+    payment_id      SERIAL PRIMARY KEY,
+    user_id         INTEGER      NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    ride_id         INTEGER      NOT NULL REFERENCES ride_bookings(ride_id) ON DELETE CASCADE,
+    amount          NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+    payment_method  VARCHAR(10)  NOT NULL CHECK (payment_method IN ('card', 'cash')),
+    payment_time    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    payment_status  VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                    CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded'))
+);
+
+--carpool payments
+CREATE TABLE carpool_payments (
+    payment_id          SERIAL PRIMARY KEY,
+    user_id             INTEGER      NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    carpool_booking_id  INTEGER      NOT NULL REFERENCES carpool_bookings(booking_id) ON DELETE CASCADE,
+    amount              NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+    payment_method      VARCHAR(10)  NOT NULL CHECK (payment_method IN ('card', 'cash')),
+    payment_time        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    payment_status      VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                        CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded'))
 );
 
 --reviews table
@@ -170,9 +193,15 @@ CREATE INDEX carpools_status_filter_index ON carpool_offers (status);
 --carpool bookings
 CREATE INDEX carpool_bookings_offer_lookup_index ON carpool_bookings (carpool_id);
 CREATE INDEX carpool_bookings_passenger_lookup_index ON carpool_bookings (passenger_id);
---payments
-CREATE INDEX payments_user_history_index ON payments (user_id);
-CREATE INDEX payments_booking_reference_index ON payments (booking_type, booking_id);
+--rental payments
+CREATE INDEX rental_payments_user_index ON rental_payments (user_id);
+CREATE INDEX rental_payments_rental_index ON rental_payments (rental_id);
+--ride payments
+CREATE INDEX ride_payments_user_index ON ride_payments (user_id);
+CREATE INDEX ride_payments_ride_index ON ride_payments (ride_id);
+--carpool payments
+CREATE INDEX carpool_payments_user_index ON carpool_payments (user_id);
+CREATE INDEX carpool_payments_booking_index ON carpool_payments (carpool_booking_id);
 --reviews
 CREATE INDEX reviews_from_reviewer_index ON reviews (reviewer_id);
 CREATE INDEX reviews_to_reviewee_index ON reviews (reviewee_id);
