@@ -3,7 +3,9 @@ DROP VIEW  IF EXISTS vw_driver_earnings CASCADE;
 DROP VIEW  IF EXISTS vw_active_rentals CASCADE;
 
 DROP TABLE IF EXISTS reviews CASCADE;
-DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS ride_payments CASCADE;
+DROP TABLE IF EXISTS rental_payments CASCADE;
+DROP TABLE IF EXISTS carpool_payments CASCADE;
 DROP TABLE IF EXISTS carpool_bookings CASCADE;
 DROP TABLE IF EXISTS carpool_offers CASCADE;
 DROP TABLE IF EXISTS ride_bookings CASCADE;
@@ -54,7 +56,7 @@ CREATE TABLE vehicles (
     seats INTEGER NOT NULL CHECK (seats > 0),
     hourly_rate NUMERIC(10,2) NOT NULL CHECK (hourly_rate >= 0),
     is_available BOOLEAN NOT NULL DEFAULT TRUE,
-    vehicle_type VARCHAR(50) NOT NULL CHECK (vehicle_type IN ('Sedan', 'SUV', 'Bike', 'Van'))
+    vehicle_type VARCHAR(50) NOT NULL CHECK (vehicle_type IN ('Sedan', 'SUV', 'Bike', 'Van')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -115,19 +117,37 @@ CREATE TABLE carpool_bookings (
 );
 
 
---to be changed
---payments
-CREATE TABLE payments (
+--rental payments
+CREATE TABLE rental_payments (
     payment_id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    booking_type VARCHAR(20) NOT NULL CHECK (booking_type IN ('rental', 'ride', 'carpool')),
-    booking_id INTEGER NOT NULL, --FK(rental_id/ride_id/carpool booking_id)
-    amount NUMERIC(10,2)  NOT NULL CHECK (amount >= 0),
-    payment_method  VARCHAR(10)    NOT NULL
-        CHECK (payment_method IN ('card', 'cash')),
-    payment_time    TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status          VARCHAR(20)    NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'completed', 'failed', 'refunded'))
+    rental_id INTEGER NOT NULL REFERENCES rental_bookings(rental_id) ON DELETE CASCADE,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+    payment_method VARCHAR(10)  NOT NULL CHECK (payment_method IN ('card', 'cash')),
+    payment_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    payment_status VARCHAR(20)  NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded'))
+);
+
+--ride payments
+CREATE TABLE ride_payments (
+    payment_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    ride_id INTEGER NOT NULL REFERENCES ride_bookings(ride_id) ON DELETE CASCADE,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+    payment_method VARCHAR(10) NOT NULL CHECK (payment_method IN ('card', 'cash')),
+    payment_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    payment_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded'))
+);
+
+--carpool payments
+CREATE TABLE carpool_payments (
+    payment_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    carpool_booking_id INTEGER NOT NULL REFERENCES carpool_bookings(booking_id) ON DELETE CASCADE,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+    payment_method VARCHAR(10)  NOT NULL CHECK (payment_method IN ('card', 'cash')),
+    payment_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    payment_status VARCHAR(20)  NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded'))
 );
 
 --reviews table
@@ -170,9 +190,15 @@ CREATE INDEX carpools_status_filter_index ON carpool_offers (status);
 --carpool bookings
 CREATE INDEX carpool_bookings_offer_lookup_index ON carpool_bookings (carpool_id);
 CREATE INDEX carpool_bookings_passenger_lookup_index ON carpool_bookings (passenger_id);
---payments
-CREATE INDEX payments_user_history_index ON payments (user_id);
-CREATE INDEX payments_booking_reference_index ON payments (booking_type, booking_id);
+--rental payments
+CREATE INDEX rental_payments_user_index ON rental_payments (user_id);
+CREATE INDEX rental_payments_rental_index ON rental_payments (rental_id);
+--ride payments
+CREATE INDEX ride_payments_user_index ON ride_payments (user_id);
+CREATE INDEX ride_payments_ride_index ON ride_payments (ride_id);
+--carpool payments
+CREATE INDEX carpool_payments_user_index ON carpool_payments (user_id);
+CREATE INDEX carpool_payments_booking_index ON carpool_payments (carpool_booking_id);
 --reviews
 CREATE INDEX reviews_from_reviewer_index ON reviews (reviewer_id);
 CREATE INDEX reviews_to_reviewee_index ON reviews (reviewee_id);
@@ -196,8 +222,8 @@ BEFORE INSERT ON carpool_bookings
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_carpool_seats();
 
--- Trigger 2: Auto Update Vehicle Availability
-CREATE OR REPLACE FUNCTION fn_rental_vehicle_availability()
+--Trigger 2: Auto Update Vehicle Availability (attached to ride_bookings)
+CREATE OR REPLACE FUNCTION fn_ride_vehicle_availability()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.status = 'active' THEN
@@ -209,12 +235,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_rental_vehicle_availability
-AFTER INSERT OR UPDATE OF status ON rental_bookings
+CREATE TRIGGER trg_ride_vehicle_availability
+AFTER INSERT OR UPDATE OF status ON ride_bookings
 FOR EACH ROW
-EXECUTE FUNCTION fn_rental_vehicle_availability();
+EXECUTE FUNCTION fn_ride_vehicle_availability();
 
--- Trigger 3: Auto complete carpools when full
+--Trigger 3: Auto complete carpools when full (handles cancellations)
 CREATE OR REPLACE FUNCTION fn_carpool_seats_update()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -225,23 +251,32 @@ BEGIN
 
         UPDATE carpool_offers
         SET status = 'full'
-        WHERE carpool_id = NEW.carpool_id AND available_seats <= 0;
+        WHERE carpool_id = NEW.carpool_id AND available_seats <= 0 AND status = 'open';
+    ELSIF TG_OP = 'UPDATE' AND NEW.status = 'cancelled' AND OLD.status != 'cancelled' THEN
+        UPDATE carpool_offers
+        SET available_seats = available_seats + NEW.seats_booked,
+            status = CASE 
+                    WHEN status = 'full' THEN 'open'
+                        ELSE status
+                    END
+        WHERE carpool_id = NEW.carpool_id;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_carpool_seats_update
-AFTER INSERT ON carpool_bookings
+AFTER INSERT OR UPDATE OF status ON carpool_bookings
 FOR EACH ROW
 EXECUTE FUNCTION fn_carpool_seats_update();
 
--- Trigger 4: Prevent Users from booking past date rentals
+--Trigger 4: Prevent Users from booking past date rentals
 CREATE OR REPLACE FUNCTION fn_check_rental_start_date()
 RETURNS TRIGGER AS $$
 BEGIN
     --idhr current date se kam ni hoskta
-    IF NEW.start_date < CURRENT_DATE THEN
+    --completed/cancelled bookings ko allow karo (historical records)
+    IF NEW.start_date < CURRENT_DATE AND NEW.status NOT IN ('completed', 'cancelled') THEN
         RAISE EXCEPTION 'cannot create booking with past start date.';
     END IF;
     RETURN NEW;
@@ -249,11 +284,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_check_rental_start_date
-BEFORE INSERT ON rental_bookings
+BEFORE INSERT OR UPDATE OF start_date ON rental_bookings
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_rental_start_date();
 
--- Trigger 5: Admin cannot delete a Vehicle with active bookings
+--Trigger 5: Admin cannot delete a Vehicle with active bookings
 CREATE OR REPLACE FUNCTION fn_check_vehicle_before_delete()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -282,7 +317,7 @@ EXECUTE FUNCTION fn_check_vehicle_before_delete();
 
 --VIEWS
 
--- View 1: Active Rentals Summary
+--View 1: Active Rentals Summary
 CREATE VIEW vw_active_rentals AS
 SELECT
     rb.rental_id,
@@ -300,7 +335,7 @@ JOIN vehicles v ON rb.vehicle_id  = v.vehicle_id
 WHERE rb.status = 'active';
 
 
--- View 2: Driver Earnings (total from rides + carpools)
+--View 2: Driver Earnings (total from rides + carpools)
 CREATE VIEW vw_driver_earnings AS
 SELECT
     u.user_id AS driver_id,
@@ -329,7 +364,7 @@ WHERE EXISTS (
 );
 
 
--- View 3: Vehicle Review Statistics
+--View 3: Vehicle Review Statistics
 CREATE VIEW vw_vehicle_review_stats AS
 SELECT
     v.vehicle_id,
