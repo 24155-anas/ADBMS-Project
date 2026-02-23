@@ -1,20 +1,20 @@
--- QUERY 1: Search user by email
--- Before indexing
+--QUERY 1: Search user by email
+--before indexing
 DROP INDEX IF EXISTS users_email_search_index;
 EXPLAIN ANALYZE
 SELECT user_id, full_name, email, phone 
 FROM users 
 WHERE email = 'zain.malik@gmail.com';
 
--- Create index
+--creating index
 CREATE INDEX users_email_search_index ON users (email);
--- After indexing
+--after indexing
 EXPLAIN ANALYZE
 SELECT user_id, full_name, email, phone 
 FROM users 
 WHERE email = 'zain.malik@gmail.com';
 
---------------------------------------------------------[RESULT]--------------------------------------------------------
+--RESULT--
 --DROP INDEX
 --                                           QUERY PLAN                                            
 ---------------------------------------------------------------------------------------------------
@@ -35,25 +35,25 @@ WHERE email = 'zain.malik@gmail.com';
 -- Execution Time: 0.019 ms
 --(5 rows)
 --DROP INDEX
---------------------------------------------------------------------------------------------------------------------------
 
--- QUERY 2: Find rentals by vehicle ID
--- Before indexing
+--QUERY 2: Find rentals by vehicle ID
+--before indexing
 DROP INDEX IF EXISTS rentals_vehicle_history_index;
 EXPLAIN ANALYZE
 SELECT rental_id, customer_id, start_date, end_date, status 
 FROM rental_bookings 
 WHERE vehicle_id = 1;
 
--- Create index
+--creating index
 CREATE INDEX rentals_vehicle_history_index ON rental_bookings (vehicle_id);
--- After indexing
+--after indexing
 EXPLAIN ANALYZE
 SELECT rental_id, customer_id, start_date, end_date, status 
 FROM rental_bookings 
 WHERE vehicle_id = 1;
 
---------------------------------------------------------[RESULT]--------------------------------------------------------
+--RESULT--
+
 --DROP INDEX
 --                                                QUERY PLAN                                                
 ------------------------------------------------------------------------------------------------------------
@@ -73,43 +73,29 @@ WHERE vehicle_id = 1;
 -- Planning Time: 0.096 ms
 -- Execution Time: 0.018 ms
 --(5 rows)
-------------------------------------------------------------------------------------------------------------------------
 
 
--- QUERY 3: Find active carpool offers (status = 'open')
--- Before indexing
+
+--QUERY 3: Find active carpool offers (yani jinka status = 'open')
+--before indexing
 DROP INDEX IF EXISTS carpools_status_filter_index;
 EXPLAIN ANALYZE
-SELECT 
-    co.carpool_id,
-    co.origin,
-    co.destination,
-    co.departure_time,
-    co.available_seats,
-    co.price_per_seat,
-    u.full_name AS driver_name
+SELECT co.carpool_id, co.origin, co.destination, co.departure_time, co.available_seats, co.price_per_seat, u.full_name AS driver_name
 FROM carpool_offers co
 JOIN users u ON co.driver_id = u.user_id
 WHERE co.status = 'open';
 
--- Create index (already defined in schema)
+--creating index
 CREATE INDEX carpools_status_filter_index ON carpool_offers (status);
--- After indexing
+--after indexing
 EXPLAIN ANALYZE
-SELECT 
-    co.carpool_id,
-    co.origin,
-    co.destination,
-    co.departure_time,
-    co.available_seats,
-    co.price_per_seat,
-    u.full_name AS driver_name
+SELECT co.carpool_id, co.origin, co.destination,co.departure_time, co.available_seats, co.price_per_seat, u.full_name AS driver_name
 FROM carpool_offers co
 JOIN users u ON co.driver_id = u.user_id
 WHERE co.status = 'open';
 
 
---------------------------------------------------------[RESULT]--------------------------------------------------------
+--RESULT--
 --DROP INDEX
 --                                                        QUERY PLAN                                                        
 --------------------------------------------------------------------------------------------------------------------------
@@ -140,4 +126,3 @@ WHERE co.status = 'open';
 -- Execution Time: 0.124 ms
 --(10 rows)
 
---------------------------------------------------------------------------------------------------------------------------
