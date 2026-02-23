@@ -1,3 +1,4 @@
+
 --QUERY 1: Search user by email
 --before indexing
 DROP INDEX IF EXISTS users_email_search_index;
@@ -125,4 +126,3 @@ WHERE co.status = 'open';
 -- Planning Time: 0.623 ms
 -- Execution Time: 0.124 ms
 --(10 rows)
-
