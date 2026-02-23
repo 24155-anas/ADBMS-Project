@@ -1,3 +1,4 @@
+
 --QUERY 1: Search user by email
 --before indexing
 DROP INDEX IF EXISTS users_email_search_index;

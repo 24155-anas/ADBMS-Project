@@ -1,3 +1,4 @@
+
 INSERT INTO roles (role_name) VALUES
 ('customer'),
 ('driver'),
