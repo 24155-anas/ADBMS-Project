@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');   //cors allows other types of requests to talk (tells browser that this frontend can talk to backend)
 const helmet = require('helmet');   //add security headers to responses
