@@ -33,20 +33,20 @@ const { query, getClient } = require('../config/database');
 
 const listOffers = async (req, res, next) => {
     try {
-        // 1. Read inputs
+        //read inputs
         const { status, origin, destination, page = 1, limit = 20 } = req.query;
         const offset = (page - 1) * limit;
 
-        // 2. Base SQL
+        // base SQL
         let sql = `
             SELECT co.*, d.full_name AS driver_name, 
                    v.model AS vehicle_model, v.licence_plate
             FROM carpool_offers co
-            JOIN users d    ON co.driver_id  = d.user_id
+            JOIN users d ON co.driver_id  = d.user_id
             JOIN vehicles v ON co.vehicle_id = v.vehicle_id
         `;
 
-        // 3. Optional filters
+        //optional filters
         const conditions = [];
         const params = [];
 
@@ -65,12 +65,12 @@ const listOffers = async (req, res, next) => {
             conditions.push(`co.destination ILIKE $${params.length}`);
         }
 
-        // 4. Attach filters if any exist
+        //attach filters if any
         if (conditions.length) {
             sql += ' WHERE ' + conditions.join(' AND ');
         }
 
-        // 5. Sort and paginate
+        //sort and paginate
         sql += ' ORDER BY co.departure_time DESC';
 
         params.push(parseInt(limit, 10));
@@ -79,7 +79,6 @@ const listOffers = async (req, res, next) => {
         params.push(parseInt(offset, 10));
         sql += ` OFFSET $${params.length}`;
 
-        // 6. Run query and respond
         const result = await query(sql, params);
         res.json({ offers: result.rows });
 
@@ -158,7 +157,7 @@ const listBookings = async (req, res, next) => {
                     d.full_name AS driver_name, u.full_name AS passenger_name
                     FROM carpool_bookings cb
                     JOIN carpool_offers co ON cb.carpool_id   = co.carpool_id
-                    JOIN users d ON co.driver_id    = d.user_id
+                    JOIN users d ON co.driver_id  = d.user_id
                     JOIN users u ON cb.passenger_id = u.user_id`;
 
         if (!isAdmin) {
