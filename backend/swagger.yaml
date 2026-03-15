@@ -94,7 +94,7 @@ components:
         comment: { type: string, nullable: true }
 
 paths:
-  # ── AUTH ──
+  
   /auth/register:
     post:
       tags: [Auth]
@@ -175,7 +175,7 @@ paths:
       responses:
         200: { description: Password changed }
 
-  # ── USERS (admin) ──
+  
   /users:
     get:
       tags: [Users]
@@ -252,7 +252,7 @@ paths:
       responses:
         200: { description: Role removed }
 
-  # ── VEHICLES ──
+  
   /vehicles:
     get:
       tags: [Vehicles]
@@ -313,7 +313,7 @@ paths:
       responses:
         200: { description: Reviews and stats }
 
-  # ── RENTALS ──
+  
   /rentals:
     get:
       tags: [Rentals]
@@ -383,7 +383,7 @@ paths:
       responses:
         200: { description: Status updated }
 
-  # ── RIDES ──
+  
   /rides:
     get:
       tags: [Rides]
@@ -439,7 +439,7 @@ paths:
       responses:
         200: { description: Ride cancelled }
 
-  # ── CARPOOLS ──
+  
   /carpools/offers:
     get:
       tags: [Carpools]
@@ -523,7 +523,7 @@ paths:
       responses:
         200: { description: Cancelled }
 
-  # ── PAYMENTS ──
+  
   /payments/rentals:
     get:
       tags: [Payments]
@@ -590,7 +590,7 @@ paths:
       responses:
         200: { description: Updated }
 
-  # ── REVIEWS ──
+  
   /reviews:
     get:
       tags: [Reviews]
@@ -650,7 +650,7 @@ paths:
       responses:
         200: { description: Deleted }
 
-  # ── HEALTH ──
+  
   /health:
     get:
       tags: [System]
