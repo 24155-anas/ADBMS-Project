@@ -1,5 +1,5 @@
 
-//after autherntiaction, check wether you are allowed to do etc...
+//after authorization, check whether you are allowed to do etc...
 
 const authorize = (...allowedRoles) => {
     return (req, res, next) => {
