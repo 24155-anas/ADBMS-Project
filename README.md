@@ -6,4 +6,6 @@ https://lucid.app/lucidchart/18e1459b-f026-4f10-8d95-6c54176034e9/edit?viewport_
 
 To run:
 npm install
-npm run / node server.js
+or npm run 
+then:
+node server.js
