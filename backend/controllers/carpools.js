@@ -12,7 +12,7 @@ const { query, getClient } = require('../config/database');
 //                     JOIN users d ON co.driver_id  = d.user_id
 //                     JOIN vehicles v ON co.vehicle_id = v.vehicle_id`;
 
-        
+
 //         const conditions = [];
 //         const params = [];
 //         if (status) { 
@@ -111,8 +111,8 @@ const getOffer = async (req, res, next) => {
         );
 
         res.json({ offer: result.rows[0], bookings: bookings.rows });
-    } catch (err) { 
-        next(err); 
+    } catch (err) {
+        next(err);
     }
 };
 
@@ -149,26 +149,46 @@ const updateOffer = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-// GET /api/v1/carpools/bookings
-const listBookings = async (req, res, next) => {
+// GET /api/v1/carpools/mine (driver)
+const listMyOffers = async (req, res, next) => {
     try {
-        const isAdmin = req.user.roles.includes('admin');
-        let sql = `SELECT cb.*, co.origin, co.destination, co.departure_time, co.price_per_seat,
-                    d.full_name AS driver_name, u.full_name AS passenger_name
-                    FROM carpool_bookings cb
-                    JOIN carpool_offers co ON cb.carpool_id   = co.carpool_id
-                    JOIN users d ON co.driver_id  = d.user_id
-                    JOIN users u ON cb.passenger_id = u.user_id`;
+        const result = await query(
+            `SELECT co.*, v.model AS vehicle_model,
+            (SELECT COUNT(*) FROM carpool_bookings WHERE carpool_id = co.carpool_id AND status = 'confirmed') AS passengers
+            FROM carpool_offers co
+            JOIN vehicles v ON co.vehicle_id = v.vehicle_id
+            WHERE co.driver_id = $1 ORDER BY co.departure_time DESC`,
+            [req.user.userId]
+        );
+        res.json({ offers: result.rows });
+    } catch (err) { next(err); }
+};
 
-        if (!isAdmin) {
-            //if not admin thn onnly return this user bookinfs
-            sql += ' WHERE cb.passenger_id = $1 ORDER BY cb.booking_time DESC';
-            const result = await query(sql, [req.user.userId]);
-            return res.json({ bookings: result.rows });
-        }
-        //else all bookings
-        sql += ' ORDER BY cb.booking_time DESC';
-        const result = await query(sql);
+// PUT /api/v1/carpools/:id/complete (driver)
+const completeOffer = async (req, res, next) => {
+    try {
+        const result = await query(
+            `UPDATE carpool_offers SET status = 'completed'
+             WHERE carpool_id = $1 AND driver_id = $2 AND status IN ('open', 'full') RETURNING *`,
+            [req.params.id, req.user.userId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Open carpool offer not found or access denied.' });
+        res.json({ message: 'Carpool marked as completed.', offer: result.rows[0] });
+    } catch (err) { next(err); }
+};
+
+// GET /api/v1/carpools/my-bookings (customer)
+const listMyBookings = async (req, res, next) => {
+    try {
+        const result = await query(
+            `SELECT cb.*, co.origin, co.destination, co.departure_time, co.price_per_seat, co.status AS offer_status,
+             d.full_name AS driver_name, d.phone AS driver_phone
+             FROM carpool_bookings cb
+             JOIN carpool_offers co ON cb.carpool_id = co.carpool_id
+             JOIN users d ON co.driver_id = d.user_id
+             WHERE cb.passenger_id = $1 ORDER BY cb.booking_time DESC`,
+            [req.user.userId]
+        );
         res.json({ bookings: result.rows });
     } catch (err) { next(err); }
 };
@@ -186,9 +206,9 @@ const bookCarpool = async (req, res, next) => {
         const offerResult = await client.query('SELECT * FROM carpool_offers WHERE carpool_id = $1 FOR UPDATE', [carpool_id]);
         if (offerResult.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Carpool offer not found.' }); }
         const offer = offerResult.rows[0];
-        if (offer.status !== 'open') { 
-            await client.query('ROLLBACK'); 
-            return res.status(409).json({ error: `Carpool is ${offer.status}, cannot book.` }); 
+        if (offer.status !== 'open') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: `Carpool is ${offer.status}, cannot book.` });
         }
 
         const bookingResult = await client.query(
@@ -214,9 +234,9 @@ const bookCarpool = async (req, res, next) => {
             return res.status(409).json({ error: err.message });
         if (err.code === '23505')
             return res.status(409).json({ error: 'You have already booked this carpool.' });
-        
+
         next(err);
-    
+
     } finally {
         client.release();
     }
@@ -231,11 +251,11 @@ const cancelCarpoolBooking = async (req, res, next) => {
             WHERE booking_id = $1 AND passenger_id = $2 AND status = 'confirmed' RETURNING *`,
             [req.params.id, req.user.userId]
         );
-        if (result.rows.length === 0) 
+        if (result.rows.length === 0)
             return res.status(404).json({ error: 'Confirmed booking not found or you are not the passenger.' });
-        
+
         res.json({ message: 'Carpool booking cancelled', booking: result.rows[0] });
     } catch (err) { next(err); }
 };
 
-module.exports = { listOffers, getOffer, createOffer, updateOffer, listBookings, bookCarpool, cancelCarpoolBooking };
+module.exports = { listOffers, getOffer, createOffer, updateOffer, listMyOffers, completeOffer, listMyBookings, bookCarpool, cancelCarpoolBooking };

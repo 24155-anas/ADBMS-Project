@@ -81,11 +81,13 @@ const createVehicle = async (req, res, next) => {
             return res.status(400).json({ error: 'licence_plate, model, seats, hourly_rate, and vehicle_type are required.' });
         }
 
+        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
         const result = await query(
-            `INSERT INTO vehicles (licence_plate, model, seats, hourly_rate, vehicle_type)
-            VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO vehicles (licence_plate, model, seats, hourly_rate, vehicle_type, image_url)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *`,
-            [licence_plate, model, seats, hourly_rate, vehicle_type]
+            [licence_plate, model, seats, hourly_rate, vehicle_type, imageUrl]
         );
 
         res.status(201).json({ message: 'Vehicle created', vehicle: result.rows[0] });
@@ -105,16 +107,19 @@ const updateVehicle = async (req, res, next) => {
     try {
         const { model, seats, hourly_rate, is_available, vehicle_type } = req.body;
 
+        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
         const result = await query(
             `UPDATE vehicles
             SET model = COALESCE($1, model),
             seats = COALESCE($2, seats),
             hourly_rate = COALESCE($3, hourly_rate),
             is_available = COALESCE($4, is_available),
-            vehicle_type = COALESCE($5, vehicle_type)
-            WHERE vehicle_id = $6
+            vehicle_type = COALESCE($5, vehicle_type),
+            image_url = COALESCE($6, image_url)
+            WHERE vehicle_id = $7
             RETURNING *`,
-            [model, seats, hourly_rate, is_available, vehicle_type, req.params.id]
+            [model, seats, hourly_rate, is_available, vehicle_type, imageUrl, req.params.id]
         );
 
         if (result.rows.length === 0) {

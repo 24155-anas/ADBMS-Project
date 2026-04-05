@@ -8,14 +8,16 @@ const router = express.Router();
 router.use(authenticate);
 
 //carpool offers
-router.get('/offers', ctrl.listOffers);
-router.get('/offers/:id', ctrl.getOffer);
-router.post('/offers', authorize('driver'), ctrl.createOffer);
-router.put('/offers/:id', authorize('driver'), ctrl.updateOffer);
+router.get('/', ctrl.listOffers);
+router.get('/mine', authorize('driver'), ctrl.listMyOffers);
+router.get('/my-bookings', authorize('customer'), ctrl.listMyBookings);
 
-//carpool bookings
-router.get('/bookings', ctrl.listBookings);
-router.post('/bookings', authorize('customer'), ctrl.bookCarpool);
-router.put('/bookings/:id/cancel', ctrl.cancelCarpoolBooking);
+router.post('/', authorize('driver'), ctrl.createOffer);
+router.post('/book', authorize('customer'), ctrl.bookCarpool);
+
+router.get('/:id', ctrl.getOffer);
+router.put('/:id', authorize('driver'), ctrl.updateOffer);
+router.put('/:id/complete', authorize('driver'), ctrl.completeOffer);
+router.put('/bookings/:id/cancel', authorize('customer'), ctrl.cancelCarpoolBooking);
 
 module.exports = router;

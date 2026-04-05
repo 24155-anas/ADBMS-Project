@@ -15,6 +15,9 @@ const rideRoutes = require('./routes/rides');
 const carpoolRoutes = require('./routes/carpools');
 const paymentRoutes = require('./routes/payments');
 const reviewRoutes = require('./routes/reviews');
+const rideRequestRoutes = require('./routes/rideRequests');
+const driverRoutes = require('./routes/drivers');
+const analyticsRoutes = require('./routes/analytics');
 
 const app = express();
 
@@ -23,14 +26,15 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());    //standard format
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 //rate limiting : 200 requests per 15 min per IP
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
-    message: {error: 'Too many requests, please try again later.'},
+    message: { error: 'Too many requests, please try again later.' },
 });
 //appolied on routes starting with /api
 app.use('/api/', limiter);
@@ -55,6 +59,9 @@ app.use('/api/v1/rides', rideRoutes);
 app.use('/api/v1/carpools', carpoolRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/ride-requests', rideRequestRoutes);
+app.use('/api/v1/drivers', driverRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
 
 
 app.get('/api/v1/health', (_req, res) => {

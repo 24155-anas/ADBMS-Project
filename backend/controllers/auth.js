@@ -53,7 +53,7 @@ const register = async (req, res, next) => {
                 user_id: newUser.user_id,
                 email: newUser.email,
                 full_name: newUser.full_name,
-                role: selectedRole,
+                roles: [selectedRole],
                 created_at: newUser.created_at,
             },
         });
