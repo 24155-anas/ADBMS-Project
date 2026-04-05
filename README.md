@@ -4,7 +4,7 @@
 ApexRides is a platform that combines car rentals, carpooling, and ride requests into one easy-to-use website. It helps people find the transportation they need quickly and professionally.
 
 Team Members: Anas(BSCS24155) and Mubeen(BSCS24063)
-Group Number: 08
+Group Number: 12
 
 ---
 
