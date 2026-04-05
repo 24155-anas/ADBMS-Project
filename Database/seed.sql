@@ -1,3 +1,5 @@
+-- Reset all tables and sequences to ensuring IDs start at 1
+TRUNCATE users, roles, vehicles, rental_bookings, ride_bookings, carpool_offers, carpool_bookings, rental_payments, ride_payments, carpool_payments, reviews, ride_requests RESTART IDENTITY CASCADE;
 
 INSERT INTO roles (role_name) VALUES
 ('customer'),
@@ -24,7 +26,7 @@ INSERT INTO users (email, password_hash, phone, full_name, profile_pic, is_activ
 ('kamran.yousaf@gmail.com', '$2b$12$abcdefghij1234567890AR', '+923001234517', 'Kamran Yousaf',     'https://example.com/pics/kamran.jpg',   TRUE),
 ('tanveer.akhtar@gmail.com', '$2b$12$abcdefghij1234567890AS', '+923001234518', 'Tanveer Akhtar',    'https://example.com/pics/tanveer.jpg',  TRUE),
 ('samina.rafiq@yahoo.com', '$2b$12$abcdefghij1234567890AT', '+923001234519', 'Samina Rafiq',      NULL,                                     TRUE),
-('admin.system@rideshare.pk', '$2b$12$abcdefghij1234567890AU', '+923001234520', 'System Admin',      NULL,                                     TRUE);
+('admin.system@rideshare.pk', '$2b$10$RQPBhQ6uyUs91mWqbW26Xu/k4IHJBpd0GK631NpKz1bAU2SwOsh9.', '+923001234520', 'System Admin',      NULL,                                     TRUE);
 
 INSERT INTO user_roles (user_id, role_id) VALUES
 (1,  1),   
@@ -53,17 +55,17 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 (20, 1),   
 (9,  1);   
 
-INSERT INTO vehicles (licence_plate, model, seats, hourly_rate, is_available, vehicle_type) VALUES
-('LEA-1234', 'Toyota Corolla 2023', 5, 1500.00, TRUE, 'Sedan'),
-('LHR-5678', 'Honda Civic 2024', 5, 1800.00, TRUE, 'Sedan'),
-('ISB-9012', 'Suzuki Alto 2022', 4,  800.00, TRUE, 'Sedan'),
-('KHI-3456', 'Toyota Yaris 2023', 5, 1200.00, TRUE, 'Sedan'),
-('RWP-7890', 'Honda City 2024', 5, 1600.00, TRUE, 'Sedan'),
-('FSD-2345', 'Suzuki Cultus 2023', 4,  900.00, TRUE, 'Sedan'),
-('MUL-6789', 'Toyota Hilux 2023', 5, 2500.00, TRUE, 'Van'),
-('PSH-0123', 'Kia Sportage 2024', 5, 3000.00, TRUE, 'SUV'),
-('QTA-4567', 'Hyundai Tucson 2023', 5, 2800.00, TRUE, 'SUV'),
-('SGD-8901', 'Suzuki Swift 2022', 4, 1000.00, TRUE, 'Sedan');
+INSERT INTO vehicles (licence_plate, model, seats, hourly_rate, is_available, vehicle_type, image_url) VALUES
+('LEA-1234', 'Toyota Corolla 2023', 5, 1500.00, TRUE, 'Sedan', '/uploads/toyota_corrolla.jpg'),
+('LHR-5678', 'Honda Civic 2024', 5, 1800.00, TRUE, 'Sedan', NULL),
+('ISB-9012', 'Suzuki Alto 2022', 4,  800.00, TRUE, 'Sedan', NULL),
+('KHI-3456', 'Toyota Yaris 2023', 5, 1200.00, TRUE, 'Sedan', NULL),
+('RWP-7890', 'Honda City 2024', 5, 1600.00, TRUE, 'Sedan', NULL),
+('FSD-2345', 'Suzuki Cultus 2023', 4,  900.00, TRUE, 'Sedan', NULL),
+('MUL-6789', 'Toyota Hilux 2023', 5, 2500.00, TRUE, 'Van',   NULL),
+('PSH-0123', 'Kia Sportage 2024', 5, 3000.00, TRUE, 'SUV',   NULL),
+('QTA-4567', 'Hyundai Tucson 2023', 5, 2800.00, TRUE, 'SUV',   NULL),
+('SGD-8901', 'Suzuki Swift 2022', 4, 1000.00, TRUE, 'Sedan', '/uploads/swift.jpg');
 
 INSERT INTO rental_bookings (customer_id, vehicle_id, start_date, end_date, total_amount, status) VALUES
 (1,  1, '2026-01-05', '2026-01-07', 72000.00, 'completed'),

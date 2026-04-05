@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS carpool_bookings CASCADE;
 DROP TABLE IF EXISTS carpool_offers CASCADE;
 DROP TABLE IF EXISTS ride_bookings CASCADE;
 DROP TABLE IF EXISTS rental_bookings CASCADE;
+DROP TABLE IF EXISTS ride_requests CASCADE;
 DROP TABLE IF EXISTS vehicles CASCADE;
 DROP TABLE IF EXISTS user_roles CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
@@ -57,7 +58,22 @@ CREATE TABLE vehicles (
     hourly_rate NUMERIC(10,2) NOT NULL CHECK (hourly_rate >= 0),
     is_available BOOLEAN NOT NULL DEFAULT TRUE,
     vehicle_type VARCHAR(50) NOT NULL CHECK (vehicle_type IN ('Sedan', 'SUV', 'Bike', 'Van')),
+    image_url TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+--ride_requests
+CREATE TABLE ride_requests (
+    request_id          SERIAL PRIMARY KEY,
+    customer_id         INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    pickup_location     VARCHAR(255) NOT NULL,
+    dropoff_location    VARCHAR(255) NOT NULL,
+    status              VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending', 'accepted', 'rejected', 'cancelled')),
+    fare_estimate       NUMERIC(10,2),
+    assigned_driver_id  INTEGER REFERENCES users(user_id) ON DELETE SET NULL,
+    expires_at          TIMESTAMP    NOT NULL DEFAULT (NOW() + INTERVAL '15 minutes'),
+    created_at          TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
 --rental bookings
@@ -69,7 +85,7 @@ CREATE TABLE rental_bookings (
     end_date DATE NOT NULL,
     total_amount NUMERIC(10,2) NOT NULL CHECK (total_amount >= 0),
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'completed', 'cancelled')),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CHECK (end_date >= start_date)
 );
@@ -173,6 +189,11 @@ CREATE INDEX user_roles_lookup_by_user_index ON user_roles (user_id);
 CREATE INDEX user_roles_lookup_by_role_index ON user_roles (role_id);
 --vehicles
 CREATE INDEX vehicles_availability_status_index ON vehicles (is_available);
+--ride_requests
+CREATE INDEX ride_requests_status_idx       ON ride_requests (status);
+CREATE INDEX ride_requests_customer_idx     ON ride_requests (customer_id);
+CREATE INDEX ride_requests_driver_idx       ON ride_requests (assigned_driver_id);
+CREATE INDEX ride_requests_created_at_idx   ON ride_requests (created_at);
 --rental bookings
 CREATE INDEX rentals_customer_history_index ON rental_bookings (customer_id);
 CREATE INDEX rentals_vehicle_history_index ON rental_bookings (vehicle_id);
@@ -206,23 +227,8 @@ CREATE INDEX reviews_vehicle_feedback_index ON reviews (vehicle_id);
 
 
 --TRIGGERS
---Trigger 1: Preventing Negative Carpool seats
-CREATE OR REPLACE FUNCTION fn_check_carpool_seats()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF (SELECT available_seats FROM carpool_offers WHERE carpool_id = NEW.carpool_id) < NEW.seats_booked THEN
-        RAISE EXCEPTION 'Not enough seats available in this carpool offer.';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_check_carpool_seats
-BEFORE INSERT ON carpool_bookings
-FOR EACH ROW
-EXECUTE FUNCTION fn_check_carpool_seats();
-
---Trigger 2: Auto Update Vehicle Availability (attached to ride_bookings)
+--Trigger 1: Auto Update Vehicle Availability (attached to ride_bookings)
 CREATE OR REPLACE FUNCTION fn_ride_vehicle_availability()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -230,41 +236,82 @@ BEGIN
         UPDATE vehicles SET is_available = FALSE WHERE vehicle_id = NEW.vehicle_id;
     ELSIF NEW.status IN ('completed', 'cancelled') THEN
         UPDATE vehicles SET is_available = TRUE WHERE vehicle_id = NEW.vehicle_id;
+        
+        -- AUTO COMPLETE PAYMENT on completion
+        IF NEW.status = 'completed' THEN
+            UPDATE ride_payments SET payment_status = 'completed' 
+            WHERE ride_id = NEW.ride_id AND payment_status = 'pending';
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_ride_vehicle_availability ON ride_bookings;
 CREATE TRIGGER trg_ride_vehicle_availability
 AFTER INSERT OR UPDATE OF status ON ride_bookings
 FOR EACH ROW
 EXECUTE FUNCTION fn_ride_vehicle_availability();
 
---Trigger 3: Auto complete carpools when full (handles cancellations)
-CREATE OR REPLACE FUNCTION fn_carpool_seats_update()
+--Trigger 2: Auto Update Vehicle Availability (attached to rental_bookings)
+CREATE OR REPLACE FUNCTION fn_rental_vehicle_availability()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF TG_OP = 'INSERT' THEN
-        UPDATE carpool_offers
-        SET available_seats = available_seats - NEW.seats_booked
-        WHERE carpool_id = NEW.carpool_id;
-
-        UPDATE carpool_offers
-        SET status = 'full'
-        WHERE carpool_id = NEW.carpool_id AND available_seats <= 0 AND status = 'open';
-    ELSIF TG_OP = 'UPDATE' AND NEW.status = 'cancelled' AND OLD.status != 'cancelled' THEN
-        UPDATE carpool_offers
-        SET available_seats = available_seats + NEW.seats_booked,
-            status = CASE 
-                    WHEN status = 'full' THEN 'open'
-                        ELSE status
-                    END
-        WHERE carpool_id = NEW.carpool_id;
+    IF NEW.status = 'active' THEN
+        UPDATE vehicles SET is_available = FALSE WHERE vehicle_id = NEW.vehicle_id;
+    ELSIF NEW.status IN ('completed', 'cancelled') THEN
+        UPDATE vehicles SET is_available = TRUE WHERE vehicle_id = NEW.vehicle_id;
+        
+        -- AUTO COMPLETE PAYMENT on completion
+        IF NEW.status = 'completed' THEN
+            UPDATE rental_payments SET payment_status = 'completed' 
+            WHERE rental_id = NEW.rental_id AND payment_status = 'pending';
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rental_vehicle_availability ON rental_bookings;
+CREATE TRIGGER trg_rental_vehicle_availability
+AFTER INSERT OR UPDATE OF status ON rental_bookings
+FOR EACH ROW
+EXECUTE FUNCTION fn_rental_vehicle_availability();
+
+--Trigger 3: Carpool Seat Management & Status Update
+CREATE OR REPLACE FUNCTION fn_carpool_seats_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        -- Check if enough seats are available
+        IF (SELECT available_seats FROM carpool_offers WHERE carpool_id = NEW.carpool_id) < NEW.seats_booked THEN
+            RAISE EXCEPTION 'Not enough seats available in this carpool.';
+        END IF;
+
+        -- Deduct seats
+        UPDATE carpool_offers
+        SET available_seats = available_seats - NEW.seats_booked
+        WHERE carpool_id = NEW.carpool_id;
+        
+        -- If seats reach 0, mark as full
+        UPDATE carpool_offers
+        SET status = 'full'
+        WHERE carpool_id = NEW.carpool_id AND available_seats = 0;
+
+    ELSIF (TG_OP = 'UPDATE') THEN
+        -- If booking is cancelled, restore seats
+        IF (OLD.status != 'cancelled' AND NEW.status = 'cancelled') THEN
+            UPDATE carpool_offers
+            SET available_seats = available_seats + NEW.seats_booked,
+                status = 'open' -- Reopen if it was full
+            WHERE carpool_id = NEW.carpool_id;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_carpool_seats_update ON carpool_bookings;
 CREATE TRIGGER trg_carpool_seats_update
 AFTER INSERT OR UPDATE OF status ON carpool_bookings
 FOR EACH ROW
@@ -283,6 +330,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_check_rental_start_date ON rental_bookings;
 CREATE TRIGGER trg_check_rental_start_date
 BEFORE INSERT OR UPDATE OF start_date ON rental_bookings
 FOR EACH ROW
@@ -308,10 +356,55 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_check_vehicle_before_delete ON vehicles;
 CREATE TRIGGER trg_check_vehicle_before_delete
 BEFORE DELETE ON vehicles
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_vehicle_before_delete();
+
+--Trigger 6: Prevent Carpool creation if vehicle is rented (is_available = FALSE)
+CREATE OR REPLACE FUNCTION fn_check_vehicle_before_offer()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (SELECT is_available FROM vehicles WHERE vehicle_id = NEW.vehicle_id) = FALSE THEN
+        RAISE EXCEPTION 'This vehicle is currently rented or in use (ride/carpool) and cannot be offered for a new carpool.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_vehicle_before_carpool ON carpool_offers;
+CREATE TRIGGER trg_check_vehicle_before_carpool
+BEFORE INSERT ON carpool_offers
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_vehicle_before_offer();
+
+--Trigger 7: Auto-complete carpool payments when trip is completed
+CREATE OR REPLACE FUNCTION fn_carpool_complete_payments()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (OLD.status != 'completed' AND NEW.status = 'completed') THEN
+        -- Mark all related bookings as completed
+        UPDATE carpool_bookings
+        SET status = 'completed'
+        WHERE carpool_id = NEW.carpool_id AND status = 'confirmed';
+
+        -- Mark all related payments as completed
+        UPDATE carpool_payments
+        SET payment_status = 'completed'
+        WHERE carpool_booking_id IN (
+            SELECT booking_id FROM carpool_bookings WHERE carpool_id = NEW.carpool_id
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_carpool_complete_payments ON carpool_offers;
+CREATE TRIGGER trg_carpool_complete_payments
+AFTER UPDATE ON carpool_offers
+FOR EACH ROW
+EXECUTE FUNCTION fn_carpool_complete_payments();
 
 
 
