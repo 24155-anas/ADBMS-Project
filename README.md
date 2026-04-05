@@ -77,9 +77,7 @@ if some error happens, sign up as a customer
 - **Instant Rides:** Customers can request immediate rides by providing pickup and dropoff locations. Real-time availability allows drivers to accept requests.
   - *Role:* Customer / Driver
   - *API Endpoint:* `POST /api/v1/ride-requests`
-- **Analytics Dashboard:** Admins have access to a dashboard tracking system-wide metrics, including total revenue from rides, carpools, and rentals, with charts and exports.
-  - *Role:* Admin
-  - *API Endpoint:* `GET /api/v1/analytics/summary`
+
 ## 8. Database Transactions
 ApexRides uses atomic database transactions to ensure that multiple operations either succeed together or fail completely without leaving the data in a messy state.
 
