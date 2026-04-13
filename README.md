@@ -1,5 +1,7 @@
 # ApexRides Project Documentation
 # the project will soon be deployed and link will be in readme here after sometime and a few improvements/fixes
+Deployed link:
+http://13.201.59.132
 
 ApexRides is a platform that combines car rentals, carpooling, and ride requests into one easy-to-use website. It helps people find the transportation they need quickly and professionally.
 
